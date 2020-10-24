@@ -1,0 +1,156 @@
+// Implements a dictionary's functionality
+
+#include <stdbool.h>
+#include <string.h>
+#include <ctype.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <strings.h>
+
+#include "dictionary.h"
+
+// Represents a node in a hash table
+typedef struct node
+{
+    char word[LENGTH + 1];
+    struct node *next;
+}
+node;
+
+// Number of buckets in hash table
+const unsigned int N = 997;
+
+// Number of words in dictionary
+int counter = 0;
+
+// Hash table
+node *table[N];
+
+// Hashes word to a number
+/* Adapted by Neel Mehta from
+ * http://stackoverflow.com/questions/2571683/djb2-hash-function.
+ */
+unsigned int hash(const char *word)
+{
+    unsigned long hash = 5381;
+
+    for (const char* ptr = word; *ptr != '\0'; ptr++)
+    {
+        hash = ((hash << 5) + hash) + tolower(*ptr);
+    }
+    return hash % N ;
+}
+
+// Loads dictionary into memory, returning true if successful else false
+bool load(const char *dictionary)
+{
+    for (int i = 0; i < N; i++)
+    {
+        table[i] = NULL;
+    }
+    
+    char buffer[LENGTH + 1];
+    
+    // Open dictionary file
+    FILE *dict = fopen(dictionary, "r");
+    if (dict == NULL)
+    {
+        return false;
+    }
+    
+    // Read strings from file one at a time
+    while (fscanf(dict, "%s", buffer) != EOF)
+    {
+        // Create a new node for each word
+        node *n = malloc(sizeof(node));
+        if (n == NULL)
+        {
+            return false;
+        }
+        
+        // Copy word into new node
+        strcpy(n->word, buffer);
+        
+        // Number of words in dictionary
+        counter++;
+        
+        //Hash word to obtain a hash value
+        unsigned int table_num = hash(buffer);
+        
+        // Insert node into hash table at that location
+        if (table[table_num] == NULL)
+        {
+            table[table_num] = n;
+            n->next = NULL;
+        }
+        else
+        {
+            n->next = table[table_num];
+            table[table_num] = n;
+        }
+    }
+    fclose(dict);
+    return true;
+}
+
+// Returns number of words in dictionary if loaded else 0 if not yet loaded
+unsigned int size(void)
+{
+    if (counter > 0)
+    {
+        return counter;
+    }
+    else
+    {
+        return 0;
+    }
+}
+
+// Returns true if word is in dictionary else false
+bool check(const char *word)
+{
+    int index = hash(word);
+    node *cursor = table[index];
+    if (cursor == NULL)
+    {
+        return false;
+    }
+    
+    while (cursor != NULL)
+    {
+        if (strcasecmp(cursor->word, word) == 0)
+        {
+            return true;
+        }
+        else
+        {
+            cursor = cursor->next;
+        }
+    }
+    return false;
+}
+
+// Unloads dictionary from memory, returning true if successful else false
+bool unload(void)
+{
+    node *cursor = NULL;
+    node *tmp = NULL;
+    
+    // Run through hash table and free each node in linked list
+    for (int i = 0; i < N; i++)
+    {
+        cursor = table[i];
+        
+        while (cursor->next != NULL)
+        {
+            tmp = cursor;
+            cursor = cursor->next;
+            free(tmp);
+        }
+        if ((cursor->next) == NULL)
+        {
+            free(cursor);
+        }
+    }
+    return true;
+}
